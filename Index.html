@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #1a1f2e; color: #e8eaf0; min-height: 100vh; padding: 12px; }
+    .app-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: #232840; border-radius: 12px; margin-bottom: 12px; border: 1px solid #2e3450; }
+    .app-header h1 { font-size: 16px; font-weight: 700; letter-spacing: 0.5px; color: #fff; }
+    .app-header span { font-size: 12px; color: #7c82a0; }
+    #liveClock { font-size: 13px; font-weight: 600; color: #5bc8f5; }
+    .card { background: #232840; border-radius: 14px; border: 1px solid #2e3450; padding: 14px; margin-bottom: 12px; }
+    .card-label { font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: #7c82a0; margin-bottom: 8px; }
+    select { width: 100%; padding: 11px 14px; background: #1a1f2e; color: #e8eaf0; border: 1px solid #3a4060; border-radius: 9px; font-size: 15px; outline: none; cursor: pointer; }
+    select:focus { border-color: #5bc8f5; }
+    .mode-toggle { display: flex; gap: 8px; margin-top: 10px; }
+    .mode-toggle label { flex: 1; cursor: pointer; }
+    .mode-toggle input[type="radio"] { display: none; }
+    .mode-btn { display: block; text-align: center; padding: 11px; border-radius: 9px; font-weight: 700; font-size: 14px; border: 2px solid #3a4060; color: #7c82a0; transition: all 0.2s; background: #1a1f2e; }
+    input[type="radio"]:checked + .mode-in { background: #0d3d1f; border-color: #22c55e; color: #22c55e; }
+    input[type="radio"]:checked + .mode-out { background: #3d0d0d; border-color: #ef4444; color: #ef4444; }
+    .tab-bar { display: flex; gap: 6px; margin-bottom: 12px; }
+    .tab-btn { flex: 1; padding: 10px; border: 1px solid #2e3450; border-radius: 9px; background: #1a1f2e; color: #7c82a0; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .tab-btn.active { background: #232840; border-color: #5bc8f5; color: #5bc8f5; }
+    #reader { width: 100%; max-width: 360px; margin: 0 auto 10px; border-radius: 12px; overflow: hidden; border: 2px solid #2e3450; background: #0d0f1a; min-height: 220px; display: flex; align-items: center; justify-content: center; }
+    .camera-placeholder { text-align: center; padding: 30px; color: #3a4060; }
+    .camera-placeholder svg { width: 52px; height: 52px; margin-bottom: 10px; opacity: 0.5; }
+    .camera-placeholder p { font-size: 13px; }
+    .cam-btn { width: 100%; padding: 12px; border-radius: 9px; border: none; font-weight: 700; font-size: 14px; cursor: pointer; margin-bottom: 6px; transition: opacity 0.2s; }
+    .cam-btn:active { opacity: 0.8; }
+    .btn-start { background: #1e6ab5; color: #fff; }
+    .btn-stop  { background: #4a4f6a; color: #fff; }
+    #cameraErrorBanner { display: none; background: #3d1a0a; border: 1px solid #c2440d; border-radius: 9px; padding: 12px 14px; font-size: 13px; color: #ffb38a; margin-bottom: 8px; line-height: 1.5; }
+    #cameraErrorBanner strong { color: #ff7940; display: block; margin-bottom: 4px; }
+    #manualTab { display: none; }
+    .dropdown-wrap { position: relative; }
+    .dropdown-input-row { display: flex; gap: 0; border: 1px solid #3a4060; border-radius: 9px; overflow: hidden; background: #1a1f2e; transition: border-color 0.2s; }
+    .dropdown-input-row:focus-within { border-color: #5bc8f5; }
+    #manualInput { flex: 1; padding: 12px 14px; background: transparent; color: #e8eaf0; border: none; font-size: 15px; outline: none; min-width: 0; }
+    #manualInput::placeholder { color: #4a5070; }
+    .dropdown-arrow-btn { padding: 0 14px; background: transparent; border: none; border-left: 1px solid #3a4060; color: #5bc8f5; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+    .dropdown-arrow-btn:hover { background: #2e3450; }
+    .dropdown-arrow-btn.open { color: #22c55e; }
+    #nameDropdown { display: none; position: absolute; width: 100%; background: #232840; border: 1px solid #3a4060; border-radius: 9px; margin-top: 4px; z-index: 100; max-height: 240px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+    #nameDropdown::-webkit-scrollbar { width: 6px; }
+    #nameDropdown::-webkit-scrollbar-track { background: #1a1f2e; border-radius: 3px; }
+    #nameDropdown::-webkit-scrollbar-thumb { background: #3a4060; border-radius: 3px; }
+    .dropdown-section-label { padding: 7px 14px 4px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #5bc8f5; background: #1e2438; border-bottom: 1px solid #2e3450; position: sticky; top: 0; }
+    .name-option { padding: 11px 14px; cursor: pointer; font-size: 14px; border-bottom: 1px solid #2a2f48; transition: background 0.12s; display: flex; align-items: center; gap: 9px; }
+    .name-option:last-child { border-bottom: none; }
+    .name-option:hover, .name-option:focus { background: #2e3a58; outline: none; }
+    .name-option .emp-avatar { width: 28px; height: 28px; border-radius: 50%; background: #1e3a5f; color: #5bc8f5; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+    .name-option .emp-info { display: flex; flex-direction: column; gap: 2px; }
+    .name-option .emp-name { font-weight: 600; color: #e8eaf0; }
+    .name-option .emp-dept { font-size: 11px; color: #6a72a0; }
+    .name-option.new-emp .emp-avatar { background: #3a2d00; color: #facc15; }
+    .name-option.new-emp .emp-name { color: #facc15; }
+    .name-option.new-emp .emp-dept { color: #7c6520; }
+    .dropdown-empty { padding: 20px 14px; text-align: center; color: #4a5070; font-size: 13px; }
+    .selected-badge { display: none; align-items: center; gap: 10px; background: #1a2a3a; border: 1px solid #1e6ab5; border-radius: 9px; padding: 10px 14px; margin-top: 8px; }
+    .selected-badge.visible { display: flex; }
+    .selected-badge .sel-avatar { width: 36px; height: 36px; border-radius: 50%; background: #1e3a5f; color: #5bc8f5; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+    .selected-badge.new-sel .sel-avatar { background: #3a2d00; color: #facc15; }
+    .selected-badge .sel-info { flex: 1; min-width: 0; }
+    .selected-badge .sel-name { font-weight: 700; font-size: 15px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .selected-badge .sel-sub { font-size: 11px; color: #6a72a0; margin-top: 2px; }
+    .selected-badge .sel-clear { background: none; border: none; color: #4a5070; font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1; }
+    .selected-badge .sel-clear:hover { color: #ef4444; }
+    .new-emp-note { background: #2a2500; border: 1px solid #7c5d00; border-radius: 9px; padding: 10px 14px; font-size: 12px; color: #fbbf24; margin-top: 8px; display: none; line-height: 1.5; }
+    .new-emp-note strong { display: block; margin-bottom: 2px; color: #fcd34d; }
+    .submit-btn { width: 100%; padding: 13px; margin-top: 10px; border: none; border-radius: 9px; font-size: 15px; font-weight: 700; cursor: pointer; background: #1e6ab5; color: #fff; transition: opacity 0.2s; }
+    .submit-btn:active { opacity: 0.8; }
+    .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.88); z-index: 999; justify-content: center; align-items: center; flex-direction: column; }
+    .pop-card { padding: 32px 28px; border-radius: 20px; width: 82%; max-width: 340px; text-align: center; }
+    .pop-card.in-card  { background: #0d3d1f; border: 2px solid #22c55e; }
+    .pop-card.out-card { background: #3d0d0d; border: 2px solid #ef4444; }
+    .pop-card .pop-icon { font-size: 48px; margin-bottom: 8px; }
+    .pop-card h2 { font-size: 26px; letter-spacing: 1px; }
+    .pop-card.in-card h2  { color: #22c55e; }
+    .pop-card.out-card h2 { color: #ef4444; }
+    #popName  { font-size: 18px; font-weight: 700; color: #fff; margin: 10px 0 4px; }
+    #popTime  { font-size: 14px; color: #a0a8c0; }
+    #popRemarks { font-size: 13px; margin-top: 6px; padding: 4px 10px; border-radius: 6px; display: inline-block; }
+    .remarks-late   { background: #4a1a00; color: #ff9950; }
+    .remarks-ontime { background: #0a2e14; color: #4ade80; }
+    .remarks-out    { background: #2e1a3a; color: #c084fc; }
+    .tap-hint { font-size: 11px; color: #5c6480; margin-top: 14px; }
+    #confirmOut { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.88); z-index: 998; justify-content: center; align-items: center; }
+    .confirm-box { background: #232840; border: 1px solid #3a4060; border-radius: 16px; padding: 28px 24px; width: 82%; max-width: 320px; text-align: center; }
+    .confirm-box p { font-size: 14px; color: #a0a8c0; margin-bottom: 16px; }
+    .confirm-box strong { font-size: 16px; color: #fff; display: block; margin-bottom: 8px; }
+    .confirm-btns { display: flex; gap: 10px; }
+    .confirm-btns button { flex: 1; padding: 11px; border: none; border-radius: 9px; font-weight: 700; font-size: 14px; cursor: pointer; }
+    .btn-cancel-out { background: #2e3450; color: #a0a8c0; }
+    .btn-confirm-out { background: #b91c1c; color: #fff; }
+    .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .history-header span { font-size: 13px; font-weight: 600; color: #a0a8c0; }
+    .copy-btn { background: #3b2878; color: #c4b5fd; border: 1px solid #5b3fa0; padding: 7px 14px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .history-table th { background: #1a1f2e; color: #7c82a0; padding: 9px 10px; text-align: left; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; }
+    .history-table td { padding: 11px 10px; border-top: 1px solid #2e3450; vertical-align: middle; }
+    .history-table tr:hover td { background: #1e2438; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 700; }
+    .badge-in  { background: #0d3d1f; color: #4ade80; }
+    .badge-out { background: #3d0d0d; color: #f87171; }
+    .scan-count { background: #1e2438; border-radius: 8px; padding: 3px 10px; font-size: 12px; color: #5bc8f5; font-weight: 600; }
+    .scanning-indicator { font-size: 12px; color: #5bc8f5; text-align: center; padding: 4px 0; display: none; }
+  </style>
+</head>
+<body>
+
+  <div class="app-header">
+    <div>
+      <h1>⬡ WAREHOUSE ATTENDANCE</h1>
+      <span>QR + Manual Entry System</span>
+    </div>
+    <div id="liveClock">--:-- --</div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">On-Duty Guard</div>
+    <select id="guardSelect"><option>Loading...</option></select>
+    <div class="mode-toggle" style="margin-top:10px;">
+      <label><input type="radio" name="mode" value="IN" checked><span class="mode-btn mode-in">✓ TIME IN</span></label>
+      <label><input type="radio" name="mode" value="OUT"><span class="mode-btn mode-out">✕ TIME OUT</span></label>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tabQR" onclick="switchTab('qr')">📷 QR Scan</button>
+    <button class="tab-btn" id="tabManual" onclick="switchTab('manual')">⌨️ Manual Entry</button>
+  </div>
+
+  <div id="qrTab">
+    <div id="cameraErrorBanner">
+      <strong>📷 Camera access denied</strong>
+      Please allow camera access when the browser asks, then refresh.
+    </div>
+    <div id="reader">
+      <div class="camera-placeholder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><rect x="7" y="7" width="4" height="4" rx="1"/><rect x="13" y="7" width="4" height="4" rx="1"/><rect x="7" y="13" width="4" height="4" rx="1"/><path d="M13 13h1m2 0v1m0 2h-1m-2 0v-1"/></svg>
+        <p>Camera not started</p>
+      </div>
+    </div>
+    <div class="scanning-indicator" id="scanIndicator">⏳ Processing scan...</div>
+    <button id="camBtn" class="cam-btn btn-start" onclick="toggleCam()">📷 START CAMERA</button>
+  </div>
+
+  <div id="manualTab">
+    <div class="card">
+      <div class="card-label">Select Employee</div>
+      <div class="dropdown-wrap" id="dropdownWrap">
+        <div class="dropdown-input-row">
+          <input type="text" id="manualInput" placeholder="Search or type employee name..."
+            oninput="filterNames(this.value)" onfocus="openDropdown()" autocomplete="off">
+          <button class="dropdown-arrow-btn" id="arrowBtn" onclick="toggleDropdown()" type="button">▾</button>
+        </div>
+        <div id="nameDropdown"></div>
+      </div>
+      <div class="selected-badge" id="selectedBadge">
+        <div class="sel-avatar" id="selAvatar">?</div>
+        <div class="sel-info">
+          <div class="sel-name" id="selName">—</div>
+          <div class="sel-sub" id="selSub">—</div>
+        </div>
+        <button class="sel-clear" onclick="clearSelection()" title="Clear">✕</button>
+      </div>
+      <div class="new-emp-note" id="newEmpNote">
+        <strong>⚠️ New Employee — No QR Code Yet</strong>
+        Attendance will be logged as a walk-in entry for admin review.
+      </div>
+      <button class="submit-btn" onclick="submitManual()">Submit Attendance</button>
+    </div>
+  </div>
+
+  <div id="confirmOut" style="display:none;">
+    <div class="confirm-box">
+      <strong id="confirmName">Employee Name</strong>
+      <p>Are you sure you want to log <b>TIME OUT</b> for this employee?</p>
+      <div class="confirm-btns">
+        <button class="btn-cancel-out" onclick="cancelConfirm()">Cancel</button>
+        <button class="btn-confirm-out" onclick="doConfirmedScan()">Yes, Clock Out</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="overlay" onclick="closePopup()">
+    <div class="pop-card" id="popCard">
+      <div class="pop-icon" id="popIcon">✓</div>
+      <h2 id="popStatus">TIME IN</h2>
+      <div id="popName">Employee Name</div>
+      <div id="popTime">--:-- --</div>
+      <div id="popRemarks"></div>
+      <div class="tap-hint">Tap anywhere to close</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="history-header">
+      <span>Recent Scans <span class="scan-count" id="scanCount">0</span></span>
+      <button class="copy-btn" onclick="copySelected()">📋 Copy for Viber</button>
+    </div>
+    <table class="history-table" id="history">
+      <thead><tr><th style="width:36px;">Pick</th><th>Employee</th><th>Status</th><th>Time</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <audio id="beep"><source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg"></audio>
+
+  <script>
+    // ── PASTE YOUR APPS SCRIPT URL HERE ──────────────────────────────────────
+    const GAS_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
+    // ─────────────────────────────────────────────────────────────────────────
+
+    let qrEngine, isScanning = false, scanCooldown = false;
+    let pendingScanData = null, allPersonnel = [], allNames = [];
+    let scanTotal = 0, dropdownOpen = false, selectedIsNew = false;
+
+    // ── API helper — calls GAS and returns parsed JSON ──
+    async function gasCall(action, params = {}) {
+      const url = new URL(GAS_URL);
+      url.searchParams.set('action', action);
+      Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+      const res = await fetch(url.toString());
+      return res.json();
+    }
+
+    // ── Clock ──
+    function updateClock() {
+      const now = new Date();
+      let h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      document.getElementById('liveClock').textContent =
+        `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} ${ampm}`;
+    }
+    setInterval(updateClock, 1000); updateClock();
+
+    window.onload = async () => {
+      qrEngine = new Html5Qrcode("reader");
+      try {
+        const [guards, personnel] = await Promise.all([
+          gasCall('getGuardList'),
+          gasCall('getPersonnelList')
+        ]);
+        document.getElementById('guardSelect').innerHTML =
+          guards.map(g => `<option value="${g}">${g}</option>`).join('');
+        allPersonnel = personnel;
+        allNames = personnel.map(p => p.name);
+      } catch(e) {
+        alert('Could not load data from server. Check your GAS_URL.');
+      }
+    };
+
+    document.addEventListener('click', e => {
+      if (!document.getElementById('dropdownWrap').contains(e.target)) closeDropdown();
+    });
+
+    function switchTab(tab) {
+      document.getElementById('qrTab').style.display     = tab === 'qr'     ? 'block' : 'none';
+      document.getElementById('manualTab').style.display = tab === 'manual' ? 'block' : 'none';
+      document.getElementById('tabQR').classList.toggle('active',     tab === 'qr');
+      document.getElementById('tabManual').classList.toggle('active', tab === 'manual');
+      if (tab === 'manual' && isScanning) {
+        qrEngine.stop().then(() => {
+          isScanning = false;
+          document.getElementById('camBtn').innerText = '📷 START CAMERA';
+          document.getElementById('camBtn').className = 'cam-btn btn-start';
+        });
+      }
+    }
+
+    function toggleCam() {
+      const btn = document.getElementById('camBtn');
+      document.getElementById('cameraErrorBanner').style.display = 'none';
+      if (!isScanning) {
+        qrEngine.start({ facingMode: "environment" }, { fps: 12, qrbox: { width: 240, height: 240 } }, onScanSuccess)
+          .then(() => { isScanning = true; btn.innerText = '🛑 STOP CAMERA'; btn.className = 'cam-btn btn-stop'; })
+          .catch(err => {
+            if (err.toString().includes('NotAllowedError') || err.toString().includes('Permission')) {
+              document.getElementById('cameraErrorBanner').style.display = 'block';
+            } else { alert('Camera error: ' + err); }
+          });
+      } else {
+        qrEngine.stop().then(() => { isScanning = false; btn.innerText = '📷 START CAMERA'; btn.className = 'cam-btn btn-start'; });
+      }
+    }
+
+    function onScanSuccess(text) {
+      if (!isScanning || scanCooldown) return;
+      scanCooldown = true;
+      document.getElementById('scanIndicator').style.display = 'block';
+      qrEngine.pause();
+      handleScan(text.trim());
+    }
+
+    function getInitials(name) { return name.split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase(); }
+    function openDropdown() { filterNames(document.getElementById('manualInput').value); document.getElementById('nameDropdown').style.display = 'block'; document.getElementById('arrowBtn').classList.add('open'); dropdownOpen = true; }
+    function closeDropdown() { document.getElementById('nameDropdown').style.display = 'none'; document.getElementById('arrowBtn').classList.remove('open'); dropdownOpen = false; }
+    function toggleDropdown() { if (dropdownOpen) closeDropdown(); else { document.getElementById('manualInput').focus(); openDropdown(); } }
+
+    function filterNames(val) {
+      const dd = document.getElementById('nameDropdown');
+      const query = val.trim().toLowerCase();
+      const matches = query ? allPersonnel.filter(p => p.name.toLowerCase().includes(query)) : allPersonnel;
+      let html = '';
+      if (matches.length > 0) {
+        html += `<div class="dropdown-section-label">👥 Personnel List (${matches.length})</div>`;
+        html += matches.map(p => {
+          const safeN = p.name.replace(/'/g, "\\'"), safeDept = (p.dept||'').replace(/'/g, "\\'");
+          return `<div class="name-option" tabindex="0" onclick="selectName('${safeN}','${safeDept}',false)" onkeydown="if(event.key==='Enter')selectName('${safeN}','${safeDept}',false)">
+            <div class="emp-avatar">${getInitials(p.name)}</div>
+            <div class="emp-info"><div class="emp-name">${p.name}</div>${p.dept ? `<div class="emp-dept">${p.dept}</div>` : ''}</div>
+          </div>`;
+        }).join('');
+      } else { html += `<div class="dropdown-empty">No match found</div>`; }
+      if (val.trim().length >= 2) {
+        const safeVal = val.trim().replace(/'/g, "\\'");
+        html += `<div class="name-option new-emp" tabindex="0" onclick="selectName('${safeVal}','Walk-in / No QR',true)">
+          <div class="emp-avatar">+</div>
+          <div class="emp-info"><div class="emp-name">＋ "${val.trim()}"</div><div class="emp-dept">New employee — walk-in entry</div></div>
+        </div>`;
+      }
+      dd.innerHTML = html; dd.style.display = 'block';
+    }
+
+    function selectName(name, dept, isNew) {
+      document.getElementById('manualInput').value = name;
+      closeDropdown(); selectedIsNew = isNew;
+      const badge = document.getElementById('selectedBadge');
+      badge.className = 'selected-badge visible' + (isNew ? ' new-sel' : '');
+      document.getElementById('selAvatar').textContent = isNew ? '?' : getInitials(name);
+      document.getElementById('selName').textContent = name;
+      document.getElementById('selSub').textContent = isNew ? '⚠️ Walk-in / No QR' : (dept || 'Warehouse Personnel');
+      document.getElementById('newEmpNote').style.display = isNew ? 'block' : 'none';
+    }
+
+    function clearSelection() {
+      document.getElementById('manualInput').value = '';
+      document.getElementById('selectedBadge').className = 'selected-badge';
+      document.getElementById('newEmpNote').style.display = 'none';
+      selectedIsNew = false;
+    }
+
+    function submitManual() {
+      const name = document.getElementById('manualInput').value.trim();
+      if (!name) { alert('Please select or enter an employee name.'); return; }
+      const mode = document.querySelector('input[name="mode"]:checked').value;
+      if (mode === 'OUT') showConfirm(name, () => handleScan(name));
+      else handleScan(name);
+    }
+
+    async function handleScan(name) {
+      const mode = document.querySelector('input[name="mode"]:checked').value;
+      const guard = document.getElementById('guardSelect').value;
+
+      if (mode === 'OUT' && !pendingScanData) {
+        pendingScanData = name;
+        showConfirm(name, async () => {
+          try {
+            const res = await gasCall('processScan', { name: pendingScanData, guard, mode: 'OUT' });
+            onScanResult(res);
+          } catch(e) { onScanFailure(e); }
+        });
+        return;
+      }
+
+      try {
+        const res = await gasCall('processScan', { name, guard, mode });
+        onScanResult(res);
+      } catch(e) { onScanFailure(e); }
+    }
+
+    function onScanResult(res) {
+      document.getElementById('scanIndicator').style.display = 'none';
+      pendingScanData = null;
+      if (res.success) {
+        document.getElementById('beep').play();
+        updateTable(res); showPopup(res); clearSelection();
+      } else { alert(res.msg); resumeScanner(); }
+      setTimeout(() => { scanCooldown = false; }, 2500);
+    }
+
+    function onScanFailure(err) {
+      document.getElementById('scanIndicator').style.display = 'none';
+      console.error('Server error:', err);
+      alert('Server error. Please try again.');
+      scanCooldown = false; pendingScanData = null; resumeScanner();
+    }
+
+    function resumeScanner() { if (isScanning && qrEngine) try { qrEngine.resume(); } catch(e) {} }
+
+    let confirmCallback = null;
+    function showConfirm(name, cb) { confirmCallback = cb; document.getElementById('confirmName').textContent = name; document.getElementById('confirmOut').style.display = 'flex'; }
+    function doConfirmedScan() { document.getElementById('confirmOut').style.display = 'none'; if (confirmCallback) confirmCallback(); confirmCallback = null; }
+    function cancelConfirm() { document.getElementById('confirmOut').style.display = 'none'; confirmCallback = null; pendingScanData = null; scanCooldown = false; resumeScanner(); }
+
+    function showPopup(res) {
+      const card = document.getElementById('popCard');
+      const isIn = res.status === 'IN';
+      card.className = 'pop-card ' + (isIn ? 'in-card' : 'out-card');
+      document.getElementById('popIcon').textContent = isIn ? '✓' : '✕';
+      document.getElementById('popStatus').textContent = isIn ? 'TIME IN' : 'TIME OUT';
+      document.getElementById('popName').textContent = res.name;
+      document.getElementById('popTime').textContent = res.time;
+      const re = document.getElementById('popRemarks');
+      if (res.remarks) { re.textContent = res.remarks; re.className = 'badge ' + (res.remarks === 'LATE' ? 'remarks-late' : res.status === 'OUT' ? 'remarks-out' : 'remarks-ontime'); re.style.display = 'inline-block'; }
+      else { re.style.display = 'none'; }
+      document.getElementById('overlay').style.display = 'flex';
+      setTimeout(closePopup, 2200);
+    }
+
+    function closePopup() { document.getElementById('overlay').style.display = 'none'; resumeScanner(); }
+
+    function updateTable(res) {
+      scanTotal++; document.getElementById('scanCount').textContent = scanTotal;
+      const tbody = document.getElementById('history').querySelector('tbody');
+      const row = tbody.insertRow(0);
+      row.setAttribute('data-viber', res.viberLine);
+      const isIn = res.status === 'IN';
+      row.innerHTML = `<td style="text-align:center"><input type="checkbox" checked style="width:16px;height:16px;cursor:pointer;accent-color:#5bc8f5;"></td>
+        <td style="font-weight:600;color:#e8eaf0;">${res.name}</td>
+        <td><span class="badge ${isIn ? 'badge-in' : 'badge-out'}">${res.status}</span></td>
+        <td style="color:#7c82a0;font-size:12px;">${res.time}</td>`;
+      if (tbody.rows.length > 60) tbody.deleteRow(60);
+    }
+
+    function copySelected() {
+      const rows = document.querySelectorAll('#history tbody tr');
+      const selected = [];
+      rows.forEach(r => { if (r.querySelector('input[type="checkbox"]').checked) selected.push(r.getAttribute('data-viber')); });
+      if (selected.length === 0) return alert('Check at least one row first.');
+      const guard = document.getElementById('guardSelect').value;
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+      const report = `📦 *WAREHOUSE ATTENDANCE REPORT*\n📅 ${dateStr}\n💂 Guard: ${guard}\n${'─'.repeat(28)}\n` + selected.join('\n');
+      navigator.clipboard.writeText(report).then(() => alert(`✅ Copied ${selected.length} entries for Viber!`));
+    }
+  </script>
+</body>
+</html>
